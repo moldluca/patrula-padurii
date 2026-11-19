@@ -1,0 +1,791 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patrula Pădurii</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-screen control room for a smart board — tab bar on top, one big panel per activity, floating timer. Single committed night-forest look. */
+:root {
+  --bg: #0e1913;
+  --panel: #15251c;
+  --panel2: #1c3025;
+  --line: #2c4535;
+  --fg: #eef4ea;
+  --muted: #a3b8a8;
+  --ember: #ff7a2e;
+  --ember2: #ffc24d;
+  --leaf: #63c271;
+  --water: #4fb6dd;
+  --ash: #4a4642;
+  --soil: #8a6440;
+  --ok: #63c271;
+  --bad: #ff6b5a;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 clamp(16px, 1.25vw, 22px)/1.45 var(--body);
+  display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+}
+h1, h2, h3 { font-family: var(--display); font-weight: 800; margin: 0; text-wrap: balance; line-height: 1.1; }
+h2 { font-size: clamp(26px, 2.6vw, 46px); }
+h3 { font-size: clamp(19px, 1.5vw, 26px); font-weight: 600; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--ember2); outline-offset: 2px; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: .78em; letter-spacing: .12em; text-transform: uppercase; color: var(--ember2); font-weight: 700; }
+
+/* top bar */
+header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--display); font-weight: 800; font-size: 1.25em; display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand small { font-family: var(--body); font-weight: 400; color: var(--muted); font-size: .7em; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+nav button {
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 10px 18px; min-height: 48px; font-weight: 700; color: var(--muted);
+}
+nav button[aria-current="true"] { background: var(--ember); border-color: var(--ember); color: #1b0e05; }
+
+main { flex: 1; min-height: 0; padding-top: 14px; display: flex; }
+section.view { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.btn {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 18px; min-height: 52px; font-weight: 700;
+}
+.btn.primary { background: var(--ember); border-color: var(--ember); color: #1b0e05; }
+.btn.on { background: var(--water); border-color: var(--water); color: #04161e; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+/* START */
+.start { display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; align-items: start; }
+.start .big { font-size: clamp(34px, 4.6vw, 84px); letter-spacing: -.02em; }
+.start .big em { font-style: normal; color: var(--ember); }
+.question { margin-top: 18px; font-size: 1.35em; max-width: 30ch; }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 26px; }
+.fact { border-top: 3px solid var(--ember2); padding-top: 10px; }
+.fact b { display: block; font-family: var(--display); font-size: 2em; line-height: 1; }
+.agenda { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }
+.agenda ol { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.agenda li { display: grid; grid-template-columns: 5.2em 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.agenda li:last-child { border-bottom: 0; }
+.agenda .t { font-variant-numeric: tabular-nums; color: var(--ember2); font-weight: 700; }
+
+/* TRIANGLE */
+.tri-wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: center; flex: 1; }
+.tri-wrap svg { width: 100%; max-height: 62vh; }
+.side { cursor: pointer; }
+.side line { stroke-width: 26; stroke-linecap: round; transition: opacity .3s; }
+.side text { font: 700 30px var(--body); fill: var(--fg); }
+.side.off line { opacity: .12; }
+.side.off text { opacity: .35; text-decoration: line-through; }
+.flame { transform-origin: 300px 330px; transition: transform .5s, opacity .5s; }
+.flame.out { transform: scale(.05); opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .flame path { animation: flick 1.1s ease-in-out infinite alternate; transform-origin: 300px 330px; }
+  .flame path:nth-child(2) { animation-duration: .8s; }
+}
+@keyframes flick { from { transform: scale(1, 1); } to { transform: scale(.94, 1.06); } }
+.tri-info { display: grid; gap: 14px; }
+.tri-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+.tri-card.hit { border-color: var(--water); background: #123040; }
+
+/* SIMULATOR */
+.sim { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; flex: 1; min-height: 0; }
+.board { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+canvas#forest { width: 100%; border-radius: 14px; border: 1px solid var(--line); touch-action: none; background: #0b140f; display: block; }
+.status { display: flex; gap: 10px; flex-wrap: wrap; }
+.pill { border-radius: 999px; padding: 6px 14px; font-weight: 700; background: var(--panel2); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.pill.fire { background: #3b1a0c; border-color: var(--ember); color: var(--ember2); }
+.pill.det { background: #10303d; border-color: var(--water); color: #bfeaf8; }
+.pill.done { background: #173a20; border-color: var(--ok); color: #cdf3d2; }
+.controls { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; }
+.controls label { font-weight: 700; display: flex; justify-content: space-between; }
+.controls input[type=range] { width: 100%; accent-color: var(--ember); height: 34px; }
+.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tools .btn { padding: 8px 10px; }
+.wind { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.wind button { min-height: 46px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); font-size: 1.2em; }
+.wind button[aria-pressed="true"] { background: var(--ember2); color: #1b1305; border-color: var(--ember2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85em; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+.log { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: .9em; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 700; }
+.challenges { font-size: .9em; display: grid; gap: 4px; margin: 0; padding-left: 1.2em; }
+
+/* NATURE CARDS */
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; flex: 1; align-content: start; }
+.card { perspective: 900px; min-height: 190px; border: 0; background: none; padding: 0; text-align: left; }
+.card .in { position: relative; width: 100%; height: 100%; min-height: 190px; transition: transform .6s; transform-style: preserve-3d; }
+.card.flip .in { transform: rotateY(180deg); }
+.card .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); }
+.card .front { background: var(--panel); justify-content: space-between; }
+.card .front .sp { font-family: var(--display); font-size: 1.5em; font-weight: 800; }
+.card .front .sym { font-size: 2.4em; line-height: 1; }
+.card .back { background: #2a1a10; border-color: var(--ember); transform: rotateY(180deg); font-size: .92em; overflow-y: auto; }
+.card .back b { color: var(--ember2); }
+@media (prefers-reduced-motion: reduce) { .card .in { transition: none; } }
+
+/* QUIZ */
+.quiz { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; flex: 1; }
+.qbox { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 22px; justify-content: center; }
+.qtext { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 2.6vw, 48px); line-height: 1.15; }
+.qans { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.qans .btn { min-height: 90px; font-size: 1.4em; }
+.qans .t { background: #173a20; border-color: var(--ok); }
+.qans .f { background: #3d1712; border-color: var(--bad); }
+.verdict { font-size: 1.15em; min-height: 3.2em; }
+.verdict b.ok { color: var(--ok); }
+.verdict b.no { color: var(--bad); }
+.teams { display: grid; gap: 12px; align-content: start; }
+.team { background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.team.turn { border-color: var(--ember2); }
+.team input { background: transparent; border: 0; border-bottom: 1px dashed var(--line); color: var(--fg); font: 700 1.1em var(--display); width: 100%; }
+.team .score { font-family: var(--display); font-size: 3em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* IDEAS */
+.ideas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex: 1; min-height: 0; }
+.col { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.col h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.col h3 small { font-family: var(--body); font-size: .62em; color: var(--muted); font-weight: 400; }
+.notes { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; min-height: 60px; }
+.note { background: var(--ember2); color: #241703; border-radius: 6px 6px 6px 14px; padding: 10px 12px; font-weight: 700; position: relative; word-wrap: break-word; }
+.col:nth-child(2) .note { background: #9fdcf2; color: #062330; }
+.col:nth-child(3) .note { background: #ffb3a1; color: #33100a; }
+.col:nth-child(4) .note { background: #b5e8b8; color: #0b2a10; }
+.note .ex { font-weight: 400; font-size: .75em; opacity: .7; display: block; }
+.note .acts { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.note .acts button { background: rgba(0,0,0,.12); border: 0; border-radius: 6px; padding: 4px 10px; min-height: 36px; font-weight: 700; }
+.note .dots { margin-left: auto; letter-spacing: 2px; }
+.add { display: flex; gap: 6px; }
+.add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); padding: 10px; font: inherit; min-height: 48px; }
+.add button { min-width: 52px; }
+
+/* TIMER */
+.timer { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--panel2); border: 1px solid var(--line); border-radius: 18px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.45); z-index: 5; }
+.timer .clock { font-family: var(--display); font-weight: 800; font-size: 1.8em; font-variant-numeric: tabular-nums; min-width: 3.4em; text-align: center; }
+.timer.ring { border-color: var(--ember); background: #3b1a0c; }
+.timer button { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; min-width: 44px; padding: 0 10px; font-weight: 700; }
+
+@media (max-width: 1100px) {
+  .start, .tri-wrap, .sim, .quiz { grid-template-columns: 1fr; }
+  .cards, .ideas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .timer { position: static; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
+}
+@media (max-width: 560px) {
+  .cards, .ideas, .facts { grid-template-columns: 1fr; }
+  .qans { grid-template-columns: 1fr; }
+}
+</style>
+
+<header>
+  <div class="brand">Patrula Pădurii <small>CrocoRobo · BIOGLOW 2026–27</small></div>
+  <nav id="nav">
+    <button data-v="start">Start</button>
+    <button data-v="triunghi">Triunghiul focului</button>
+    <button data-v="simulator">Simulator</button>
+    <button data-v="natura">Cine pierde?</button>
+    <button data-v="quiz">Quiz</button>
+    <button data-v="idei">Panoul de idei</button>
+  </nav>
+</header>
+
+<main>
+  <!-- START -->
+  <section class="view" id="v-start">
+    <div class="start">
+      <div>
+        <p class="eyebrow">Proiectul de inovație · ședința din 20 noiembrie</p>
+        <h1 class="big">Pădurea arde.<br><em>Cine ajunge primul?</em></h1>
+        <p class="question">Cum putem descoperi și opri un incendiu de pădure înainte să distrugă casa a mii de viețuitoare?</p>
+        <div class="facts">
+          <div class="fact"><b>9 / 10</b>incendii de pădure din Europa pornesc din cauza oamenilor</div>
+          <div class="fact"><b>3</b>lucruri de care are nevoie focul: căldură, combustibil, oxigen</div>
+          <div class="fact"><b>112</b>numărul la care suni când vezi fum în pădure</div>
+        </div>
+      </div>
+      <div class="agenda">
+        <h3>Planul de azi</h3>
+        <p class="muted" style="margin-top:6px"><a href="fise.pdf" style="color:var(--ember2)">Fișele de lucru (PDF)</a></p>
+        <ol>
+          <li><span class="t">0–5'</span><span>Ce știm deja despre incendii?</span></li>
+          <li><span class="t">5–12'</span><span>Triunghiul focului · Fișa 1</span></li>
+          <li><span class="t">12–27'</span><span>Simulatorul: cu dronă sau fără? · Fișa 2</span></li>
+          <li><span class="t">27–35'</span><span>Cine pierde când arde pădurea?</span></li>
+          <li><span class="t">35–42'</span><span>Quiz pe echipe</span></li>
+          <li><span class="t">42–55'</span><span>Panoul de idei · Fișa 3</span></li>
+          <li><span class="t">55–60'</span><span>Ce am decis și ce facem până data viitoare</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRIANGLE -->
+  <section class="view" id="v-triunghi" hidden>
+    <div>
+      <p class="eyebrow">Atinge o latură ca s-o scoți</p>
+      <h2>Triunghiul focului</h2>
+    </div>
+    <div class="tri-wrap">
+      <svg viewBox="0 0 600 560" role="img" aria-label="Triunghiul focului cu flacără în mijloc">
+        <g class="flame" id="flame">
+          <path d="M300 170 C 350 240 390 270 380 330 C 372 380 330 400 300 400 C 262 400 222 378 222 330 C 222 285 260 270 268 225 C 285 250 290 262 300 170 Z" fill="#ff7a2e"/>
+          <path d="M300 255 C 325 290 345 310 338 345 C 333 372 316 385 300 385 C 280 385 262 370 262 345 C 262 318 285 305 300 255 Z" fill="#ffc24d"/>
+        </g>
+        <g class="side" data-s="caldura" tabindex="0" role="button" aria-label="Căldură">
+          <line x1="300" y1="60" x2="70" y2="470" stroke="#ff6b5a"/>
+          <text x="95" y="240" text-anchor="middle" transform="rotate(-60 140 260)">CĂLDURĂ</text>
+        </g>
+        <g class="side" data-s="oxigen" tabindex="0" role="button" aria-label="Oxigen">
+          <line x1="300" y1="60" x2="530" y2="470" stroke="#4fb6dd"/>
+          <text x="505" y="240" text-anchor="middle" transform="rotate(60 460 260)">OXIGEN</text>
+        </g>
+        <g class="side" data-s="combustibil" tabindex="0" role="button" aria-label="Combustibil">
+          <line x1="70" y1="470" x2="530" y2="470" stroke="#63c271"/>
+          <text x="300" y="530" text-anchor="middle">COMBUSTIBIL</text>
+        </g>
+      </svg>
+      <div class="tri-info">
+        <div class="tri-card" id="tc-caldura"><h3>Fără căldură</h3><p class="muted">Pompierii răcesc focul cu apă. Avioanele aruncă tone de apă peste pădure.</p></div>
+        <div class="tri-card" id="tc-oxigen"><h3>Fără oxigen</h3><p class="muted">Acoperi focul cu pământ sau spumă, ca să nu mai primească aer.</p></div>
+        <div class="tri-card" id="tc-combustibil"><h3>Fără combustibil</h3><p class="muted">Tai un parafoc: o fâșie fără copaci și frunze uscate. Focul nu mai are ce arde.</p></div>
+        <div class="row"><button class="btn" id="triReset">Aprinde din nou</button><span class="muted" id="triMsg">Focul arde. Ce scoatem?</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULATOR -->
+  <section class="view" id="v-simulator" hidden>
+    <div class="sim">
+      <div class="board">
+        <div class="status" id="status"></div>
+        <canvas id="forest" aria-label="Simulator incendiu de pădure"></canvas>
+        <div class="legend">
+          <span><i style="background:#3f8f4b"></i>pădure</span>
+          <span><i style="background:#ff7a2e"></i>arde</span>
+          <span><i style="background:#3a3632"></i>ars</span>
+          <span><i style="background:#8a6440"></i>parafoc</span>
+          <span><i style="background:#2f7ea0"></i>râu</span>
+          <span><i style="background:#fff;border-radius:50%"></i>cuib / vizuină</span>
+          <span><i style="background:#4fb6dd;border-radius:50%"></i>dronă (cercul = ce vede camera)</span>
+        </div>
+        <div class="log">
+          <table>
+            <thead><tr><th>#</th><th>Vânt</th><th>Umiditate</th><th>Dronă</th><th>Parafoc</th><th>Descoperit la</th><th>A durat</th><th>Pădure salvată</th><th>Animale salvate</th></tr></thead>
+            <tbody id="logBody"><tr><td colspan="9" class="muted">Fiecare incendiu terminat apare aici. Copiați rândurile în Fișa 2.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="tools" role="group" aria-label="Unealtă">
+          <button class="btn primary" id="toolFire">Aprinde focul</button>
+          <button class="btn" id="toolBreak">Taie parafoc</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="play" style="flex:1">Pauză</button>
+          <button class="btn" id="same" style="flex:1">Aceeași pădure</button>
+          <button class="btn" id="fresh" style="flex:1">Pădure nouă</button>
+        </div>
+        <button class="btn on" id="drone" aria-pressed="true">Drona de pază: PORNITĂ</button>
+        <div>
+          <label for="hum">Umiditate <span id="humV">30%</span></label>
+          <input type="range" id="hum" min="0" max="90" step="10" value="30">
+        </div>
+        <div>
+          <label for="windS">Putere vânt <span id="windSV">mediu</span></label>
+          <input type="range" id="windS" min="0" max="3" step="1" value="2">
+        </div>
+        <div>
+          <label>Bate vântul spre</label>
+          <div class="wind" id="wind"></div>
+        </div>
+        <div>
+          <label for="speed">Viteză simulare <span id="speedV">normal</span></label>
+          <input type="range" id="speed" min="1" max="3" step="1" value="2">
+        </div>
+        <div>
+          <p class="eyebrow" style="margin-bottom:4px">Provocări</p>
+          <ol class="challenges">
+            <li>Aprinde un foc fără dronă. Notează.</li>
+            <li>Apasă „Aceeași pădure", pornește drona, aprinde în același loc.</li>
+            <li>Vânt puternic, umiditate 0%. Ce se schimbă?</li>
+            <li>Poți salva cuiburile cu un parafoc?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NATURE -->
+  <section class="view" id="v-natura" hidden>
+    <div>
+      <p class="eyebrow">Atinge un card ca să-l întorci</p>
+      <h2>Cine pierde când arde pădurea?</h2>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="view" id="v-quiz" hidden>
+    <div class="quiz">
+      <div class="qbox">
+        <p class="eyebrow" id="qnum">Întrebarea 1</p>
+        <p class="qtext" id="qtext"></p>
+        <div class="qans">
+          <button class="btn t" data-a="1">Adevărat</button>
+          <button class="btn f" data-a="0">Fals</button>
+        </div>
+        <p class="verdict" id="verdict"></p>
+        <div class="row"><button class="btn primary" id="qnext" hidden>Următoarea</button><button class="btn" id="qreset">De la capăt</button></div>
+      </div>
+      <div class="teams">
+        <div class="team" id="team0"><input id="tn0" value="Echipa Urșilor" aria-label="Numele echipei 1"><div class="score" id="ts0">0</div></div>
+        <div class="team" id="team1"><input id="tn1" value="Echipa Cerbilor" aria-label="Numele echipei 2"><div class="score" id="ts1">0</div></div>
+        <p class="muted">Echipele răspund pe rând. Răspuns corect = 1 punct.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- IDEAS -->
+  <section class="view" id="v-idei" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <p class="eyebrow">Ce poate face drona noastră?</p>
+        <h2>Panoul de idei</h2>
+      </div>
+      <p class="muted" style="max-width:38ch">Scrieți orice idee. La final, fiecare copil dă 3 voturi. Ideea cu cele mai multe voturi intră în Fișa 3.</p>
+    </div>
+    <div class="ideas" id="ideas"></div>
+  </section>
+</main>
+
+<div class="timer" id="timer">
+  <button data-m="5">5'</button>
+  <button data-m="10">10'</button>
+  <button data-m="15">15'</button>
+  <span class="clock" id="clock">00:00</span>
+  <button id="tStop" aria-label="Oprește cronometrul">■</button>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- navigation ---------- */
+const views = ["start", "triunghi", "simulator", "natura", "quiz", "idei"];
+function show(v) {
+  if (!views.includes(v)) v = "start";
+  views.forEach(x => { $("#v-" + x).hidden = x !== v; });
+  document.querySelectorAll("#nav button").forEach(b => b.setAttribute("aria-current", b.dataset.v === v));
+  if (v === "simulator") sizeCanvas();
+}
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) location.hash = b.dataset.v; });
+addEventListener("hashchange", () => show(location.hash.slice(1)));
+addEventListener("keydown", e => {
+  if (e.target.matches("input")) return;
+  const i = views.indexOf(location.hash.slice(1) || "start");
+  if (e.key === "ArrowRight" && i < views.length - 1) location.hash = views[i + 1];
+  if (e.key === "ArrowLeft" && i > 0) location.hash = views[i - 1];
+});
+
+/* ---------- fire triangle ---------- */
+const removed = new Set();
+function triUpdate() {
+  document.querySelectorAll(".side").forEach(s => s.classList.toggle("off", removed.has(s.dataset.s)));
+  ["caldura", "oxigen", "combustibil"].forEach(k => $("#tc-" + k).classList.toggle("hit", removed.has(k)));
+  $("#flame").classList.toggle("out", removed.size > 0);
+  $("#triMsg").textContent = removed.size ? "Focul s-a stins! Ajunge să lipsească o singură latură." : "Focul arde. Ce scoatem?";
+}
+document.querySelectorAll(".side").forEach(s => {
+  const toggle = () => { removed.has(s.dataset.s) ? removed.delete(s.dataset.s) : removed.add(s.dataset.s); triUpdate(); };
+  s.addEventListener("click", toggle);
+  s.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+});
+$("#triReset").onclick = () => { removed.clear(); triUpdate(); };
+
+/* ---------- simulator ---------- */
+const W = 72, H = 40;
+const TREE = 1, FIRE = 2, BURNT = 3, BREAK = 4, RIVER = 5, GROUND = 0;
+const cv = $("#forest"), ctx = cv.getContext("2d");
+let cell = 10;
+let seed = Math.floor(Math.random() * 1e9);
+let grid, age, shade, nests, origTrees, randSpread, randFight;
+let sim;             // current fire run
+let running = true, tool = "fire", droneOn = true;
+let wind = [1, 0];   // blowing towards east
+const S = { hum: 0.3, windS: 2, speed: 2 };
+const runs = store.get("crocorobo-runs", []);
+
+function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function buildForest() {
+  const r = rng(seed);
+  grid = new Uint8Array(W * H); age = new Uint8Array(W * H); shade = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) { grid[i] = r() < 0.86 ? TREE : GROUND; shade[i] = r(); }
+  // a meandering river
+  let x = Math.floor(W * (0.55 + r() * 0.2));
+  for (let y = 0; y < H; y++) {
+    x += Math.round((r() - 0.5) * 2); x = Math.max(3, Math.min(W - 4, x));
+    for (let k = 0; k < 2; k++) grid[y * W + x + k] = RIVER;
+  }
+  // a few clearings
+  for (let c = 0; c < 4; c++) {
+    const cx = Math.floor(r() * W), cy = Math.floor(r() * H), rad = 2 + r() * 2;
+    for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++)
+      if ((xx - cx) ** 2 + (y - cy) ** 2 < rad * rad && grid[y * W + xx] === TREE) grid[y * W + xx] = GROUND;
+  }
+  nests = [];
+  while (nests.length < 16) {
+    const i = Math.floor(r() * W * H);
+    if (grid[i] === TREE && !nests.includes(i)) nests.push(i);
+  }
+  origTrees = grid.reduce((n, v) => n + (v === TREE), 0);
+  randSpread = rng(seed + 1); randFight = rng(seed + 2);
+  sim = null;
+  draw(); status();
+}
+
+function newRun() {
+  sim = { t: 0, detectedAt: null, arriveAt: null, endedAt: null, hadBreak: grid.includes(BREAK),
+          drone: { x: 2, y: 7, dir: 1 }, droneOn, hum: S.hum, windS: S.windS, wind: wind.slice() };
+}
+
+function step() {
+  if (!sim || sim.endedAt !== null) return;
+  sim.t++;
+  const next = grid.slice();
+  const fighting = sim.arriveAt !== null && sim.t >= sim.arriveAt;
+  const base = 0.5 * (1 - sim.hum * 0.85) * (fighting ? 0.3 : 1);
+  const [wx, wy] = sim.wind;
+  let burning = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (grid[i] !== FIRE) continue;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (grid[j] !== TREE || next[j] === FIRE) continue;
+      const len = Math.hypot(dx, dy);
+      const dot = (dx * wx + dy * wy) / (len * Math.hypot(wx, wy));
+      let p = base * (len > 1 ? 0.7 : 1) * Math.max(0.08, 1 + 0.55 * sim.windS * dot);
+      if (randSpread() < Math.min(0.96, p)) { next[j] = FIRE; age[j] = 0; }
+    }
+    age[i]++;
+    if (age[i] >= 3 || (fighting && randFight() < 0.5)) next[i] = BURNT;
+  }
+  grid = next;
+  for (let i = 0; i < W * H; i++) if (grid[i] === FIRE) burning++;
+
+  // detection: the drone sees fire inside its camera circle; otherwise someone notices the smoke late
+  if (sim.detectedAt === null) {
+    if (sim.droneOn) moveDrone();
+    const lost = countBurnt() + burning;
+    if ((sim.droneOn && droneSees()) || lost >= 350) { sim.detectedBy = sim.droneOn && droneSees() ? "drone" : "smoke"; sim.detectedAt = sim.t; sim.arriveAt = sim.t + 6; }
+  }
+  if (burning === 0) { sim.endedAt = sim.t; finishRun(); }
+  draw(); status();
+}
+
+const R = 12; // drone camera radius in cells (thermal camera from altitude)
+function moveDrone() {
+  const d = sim.drone;
+  d.x += d.dir * 8;
+  if (d.x > W - 3 || d.x < 2) { d.dir *= -1; d.x = Math.max(2, Math.min(W - 3, d.x)); d.y = d.y < H / 2 ? 30 : 7; }
+}
+function droneSees() {
+  const d = sim.drone;
+  for (let y = Math.max(0, d.y - R); y < Math.min(H, d.y + R + 1); y++)
+    for (let x = Math.max(0, Math.floor(d.x - R)); x < Math.min(W, d.x + R + 1); x++)
+      if (grid[y * W + x] === FIRE && (x - d.x) ** 2 + (y - d.y) ** 2 <= R * R) return true;
+  return false;
+}
+function countBurnt() { let n = 0; for (let i = 0; i < W * H; i++) if (grid[i] === BURNT) n++; return n; }
+function treesLeft() { let n = 0; for (let i = 0; i < W * H; i++) if (grid[i] === TREE) n++; return n; }
+function nestsLeft() { return nests.filter(i => grid[i] === TREE).length; }
+
+const windNames = { "0,-1": "N", "1,-1": "NE", "1,0": "E", "1,1": "SE", "0,1": "S", "-1,1": "SV", "-1,0": "V", "-1,-1": "NV" };
+const windPower = ["fără", "slab", "mediu", "puternic"];
+function finishRun() {
+  runs.push({
+    vant: sim.windS ? windPower[sim.windS] + " → " + windNames[sim.wind.join(",")] : "fără",
+    um: Math.round(sim.hum * 100) + "%",
+    drona: sim.droneOn ? "da" : "nu",
+    parafoc: sim.hadBreak ? "da" : "nu",
+    det: sim.detectedAt === null ? "—" : "min " + sim.detectedAt,
+    dur: sim.endedAt + " min",
+    salvat: Math.round(100 * treesLeft() / origTrees) + "%",
+    anim: nestsLeft() + " / " + nests.length
+  });
+  store.set("crocorobo-runs", runs);
+  renderLog();
+}
+function renderLog() {
+  if (!runs.length) return;
+  $("#logBody").innerHTML = runs.slice(-6).map((r, k) => {
+    const n = runs.length - Math.min(6, runs.length) + k + 1;
+    return `<tr><td>${n}</td><td>${r.vant}</td><td>${r.um}</td><td>${r.drona}</td><td>${r.parafoc}</td><td>${r.det}</td><td>${r.dur}</td><td><b>${r.salvat}</b></td><td>${r.anim}</td></tr>`;
+  }).join("");
+}
+
+function status() {
+  const el = $("#status");
+  const saved = Math.round(100 * treesLeft() / origTrees);
+  let html = "";
+  if (!sim) html = `<span class="pill">Alege un loc și atinge pădurea ca să aprinzi focul</span>`;
+  else {
+    html += `<span class="pill">Minutul ${sim.t}</span>`;
+    if (sim.endedAt !== null) html += `<span class="pill done">Focul s-a stins</span>`;
+    else if (sim.detectedAt === null) html += `<span class="pill fire">Focul arde și nimeni nu știe</span>`;
+    else if (sim.t < sim.arriveAt) html += `<span class="pill det">${sim.detectedBy === "drone" ? "Drona a dat alarma" : "Cineva a văzut fumul"} · pompierii ajung în ${sim.arriveAt - sim.t} min</span>`;
+    else html += `<span class="pill det">Pompierii sting focul</span>`;
+  }
+  html += `<span class="pill">Pădure: ${saved}%</span><span class="pill">Cuiburi: ${nestsLeft()} / ${nests.length}</span>`;
+  el.innerHTML = html;
+}
+
+function color(i) {
+  const v = grid[i], s = shade[i];
+  if (v === TREE) return `hsl(${125 + s * 18} ${38 + s * 14}% ${26 + s * 12}%)`;
+  if (v === FIRE) return age[i] === 0 ? "#ffc24d" : (Math.random() < 0.5 ? "#ff7a2e" : "#ff5a1f");
+  if (v === BURNT) return `hsl(25 6% ${18 + s * 6}%)`;
+  if (v === BREAK) return "#8a6440";
+  if (v === RIVER) return "#2f7ea0";
+  return `hsl(90 18% ${18 + s * 5}%)`;
+}
+function draw() {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    ctx.fillStyle = color(y * W + x);
+    ctx.fillRect(x * cell, y * cell, cell + 0.5, cell + 0.5);
+  }
+  nests.forEach(i => {
+    const x = i % W, y = (i / W) | 0, alive = grid[i] === TREE;
+    ctx.beginPath(); ctx.arc((x + .5) * cell, (y + .5) * cell, cell * 0.42, 0, 7);
+    ctx.fillStyle = alive ? "#ffffff" : "#6b2a1f"; ctx.fill();
+    ctx.lineWidth = Math.max(1, cell * .12); ctx.strokeStyle = "#0e1913"; ctx.stroke();
+  });
+  if (sim && sim.droneOn && sim.detectedAt === null && sim.endedAt === null) {
+    const d = sim.drone, cx = (d.x + .5) * cell, cy = (d.y + .5) * cell;
+    ctx.beginPath(); ctx.arc(cx, cy, R * cell, 0, 7);
+    ctx.fillStyle = "rgba(79,182,221,.12)"; ctx.fill();
+    ctx.strokeStyle = "rgba(79,182,221,.8)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = "#4fb6dd";
+    ctx.fillRect(cx - cell * .9, cy - cell * .15, cell * 1.8, cell * .3);
+    ctx.fillRect(cx - cell * .15, cy - cell * .9, cell * .3, cell * 1.8);
+    ctx.beginPath(); ctx.arc(cx, cy, cell * .45, 0, 7); ctx.fill();
+  }
+}
+
+function sizeCanvas() {
+  const box = cv.parentElement.getBoundingClientRect();
+  const maxH = Math.max(220, innerHeight - cv.getBoundingClientRect().top - 190);
+  cell = Math.max(4, Math.floor(Math.min(box.width / W, maxH / H)));
+  cv.width = W * cell; cv.height = H * cell;
+  cv.style.width = cv.width + "px"; cv.style.maxWidth = "100%"; cv.style.height = "auto";
+  draw();
+}
+addEventListener("resize", () => { if (!$("#v-simulator").hidden) sizeCanvas(); });
+
+function cellAt(e) {
+  const r = cv.getBoundingClientRect();
+  return [Math.floor((e.clientX - r.left) / r.width * W), Math.floor((e.clientY - r.top) / r.height * H)];
+}
+let drawing = false, last = null;
+function paintBreak(x, y) {
+  for (let dy = 0; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < W && ny < H && nx >= 0 && ny >= 0) { const i = ny * W + nx; if (grid[i] === TREE || grid[i] === GROUND) grid[i] = BREAK; }
+  }
+}
+cv.addEventListener("pointerdown", e => {
+  const [x, y] = cellAt(e);
+  if (tool === "fire") {
+    if (sim && sim.endedAt === null) return;
+    if (sim && sim.endedAt !== null) { seedSame(false); }
+    const i = y * W + x;
+    if (grid[i] !== TREE) { $("#status").innerHTML = `<span class="pill fire">Atinge un copac (verde) ca să pornească focul</span>`; return; }
+    newRun(); grid[i] = FIRE; age[i] = 0; running = true; $("#play").textContent = "Pauză";
+    draw(); status();
+  } else {
+    drawing = true; last = [x, y]; cv.setPointerCapture(e.pointerId); paintBreak(x, y); draw();
+  }
+});
+cv.addEventListener("pointermove", e => {
+  if (!drawing) return;
+  const [x, y] = cellAt(e), [lx, ly] = last;
+  const n = Math.max(Math.abs(x - lx), Math.abs(y - ly), 1);
+  for (let k = 0; k <= n; k++) paintBreak(Math.round(lx + (x - lx) * k / n), Math.round(ly + (y - ly) * k / n));
+  last = [x, y]; draw();
+});
+addEventListener("pointerup", () => { drawing = false; });
+
+// "Aceeași pădure" restores the identical forest so only the settings change between runs
+let breaksSaved = null;
+function seedSame(keepBreaks = true) {
+  const keep = keepBreaks ? null : grid.map(v => v === BREAK);
+  buildForest();
+  if (keep) keep.forEach((b, i) => { if (b && grid[i] !== RIVER) grid[i] = BREAK; });
+  draw(); status();
+}
+$("#same").onclick = () => seedSame(true);
+$("#fresh").onclick = () => { seed = Math.floor(Math.random() * 1e9); buildForest(); };
+$("#play").onclick = () => { running = !running; $("#play").textContent = running ? "Pauză" : "Continuă"; };
+$("#toolFire").onclick = () => setTool("fire");
+$("#toolBreak").onclick = () => setTool("break");
+function setTool(t) { tool = t; $("#toolFire").classList.toggle("primary", t === "fire"); $("#toolBreak").classList.toggle("primary", t === "break"); }
+$("#drone").onclick = () => {
+  droneOn = !droneOn;
+  const b = $("#drone"); b.classList.toggle("on", droneOn); b.setAttribute("aria-pressed", droneOn);
+  b.textContent = "Drona de pază: " + (droneOn ? "PORNITĂ" : "OPRITĂ");
+};
+$("#hum").oninput = e => { S.hum = e.target.value / 100; $("#humV").textContent = e.target.value + "%"; };
+$("#windS").oninput = e => { S.windS = +e.target.value; $("#windSV").textContent = windPower[S.windS]; };
+$("#speed").oninput = e => { S.speed = +e.target.value; $("#speedV").textContent = ["", "încet", "normal", "repede"][S.speed]; };
+const arrows = [["↖", -1, -1], ["↑", 0, -1], ["↗", 1, -1], ["←", -1, 0], ["·", 0, 0], ["→", 1, 0], ["↙", -1, 1], ["↓", 0, 1], ["↘", 1, 1]];
+$("#wind").innerHTML = arrows.map(([a, x, y]) => `<button data-x="${x}" data-y="${y}" aria-label="vânt ${a}" ${x || y ? "" : "disabled style='opacity:.3'"} aria-pressed="${x === wind[0] && y === wind[1]}">${a}</button>`).join("");
+$("#wind").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  wind = [+b.dataset.x, +b.dataset.y];
+  document.querySelectorAll("#wind button").forEach(x => x.setAttribute("aria-pressed", x === b));
+});
+
+let acc = 0, prev = performance.now();
+function loop(now) {
+  acc += now - prev; prev = now;
+  const every = [0, 260, 140, 60][S.speed];
+  if (running && sim && sim.endedAt === null && acc > every) { acc = 0; step(); }
+  else if (sim && sim.endedAt === null && running) { /* flicker */ }
+  if (acc > 1000) acc = 0;
+  requestAnimationFrame(loop);
+}
+buildForest(); renderLog(); requestAnimationFrame(loop);
+
+/* ---------- nature cards ---------- */
+const beings = [
+  ["Ursul brun", "🐻", "Fuge repede, dar pierde locurile unde găsește hrană: fructe de pădure, jir, ghinde.", "România are una dintre cele mai mari populații de urși din Europa."],
+  ["Cerbul", "🦌", "Poate fugi din calea focului, dar după incendiu nu mai are iarbă și lăstari de mâncat.", "Animalele mari se întorc abia când pădurea începe să crească la loc."],
+  ["Ariciul", "🦔", "Se mișcă încet și doarme în grămezi de frunze uscate, exact unde focul se aprinde cel mai ușor.", "Primăvara, când se ard resturile de pe câmp, mulți arici nu scapă."],
+  ["Salamandra", "🦎", "Trăiește sub frunze și pietre umede. Nu poate fugi departe.", "Animalele mici și lente sunt cele mai afectate de foc."],
+  ["Ciocănitoarea", "🐦", "Își face cuibul în scorburi. Puii nu pot zbura, deci nu pot scăpa.", "Un foc primăvara, în sezonul cuiburilor, e cel mai periculos pentru păsări."],
+  ["Albinele și fluturii", "🦋", "Pierd florile și plantele de care au nevoie. Fără ei, multe plante nu mai fac semințe.", "Polenizatorii leagă toată pădurea între ele."],
+  ["Fagul", "🌳", "Are scoarța subțire, așa că focul îl rănește ușor. Un fag mare are peste 100 de ani.", "O pădure arsă are nevoie de zeci de ani ca să crească la loc."],
+  ["Solul și ciupercile", "🍄", "Focul arde stratul de frunze și ciupercile din pământ care hrănesc rădăcinile copacilor.", "Fără ele, ploaia spală pământul și cenușa ajunge în râuri."]
+];
+$("#cards").innerHTML = beings.map(([n, s, a, b]) => `
+  <button class="card" aria-label="${n}"><div class="in">
+    <div class="face front"><span class="sym" aria-hidden="true">${s}</span><span class="sp">${n}</span><span class="muted">Ce i se întâmplă?</span></div>
+    <div class="face back"><p>${a}</p><p><b>Știai?</b> ${b}</p></div>
+  </div></button>`).join("");
+$("#cards").addEventListener("click", e => { const c = e.target.closest(".card"); if (c) c.classList.toggle("flip"); });
+
+/* ---------- quiz ---------- */
+const Q = [
+  ["Cele mai multe incendii de pădure din Europa sunt pornite de fulgere.", 0, "Peste 9 din 10 sunt pornite de oameni: foc lăsat nestins, resturi arse pe câmp, țigări."],
+  ["Focul are nevoie de căldură, combustibil și oxigen.", 1, "Acesta e triunghiul focului. Scoți o latură și focul se stinge."],
+  ["Vântul face focul să se întindă mai repede.", 1, "Vântul aduce oxigen și împinge căldura spre copacii vecini. Ați văzut asta în simulator."],
+  ["O pădure arsă crește la loc în 2–3 ani.", 0, "Iarba revine repede, dar o pădure de fagi are nevoie de zeci de ani."],
+  ["Un parafoc este o fâșie fără copaci care oprește focul.", 1, "Fără combustibil, focul nu are pe unde să treacă. De aceea trebuie să fie destul de lat."],
+  ["O cameră termică de pe dronă poate vedea căldura focului chiar și prin fum.", 1, "Camera termică vede căldura, nu lumina, așa că găsește focul și noaptea sau prin fum."],
+  ["Animalele mici, ca salamandrele și melcii, fug ușor din calea focului.", 0, "Animalele mici și lente sunt cele mai afectate, pentru că nu pot fugi departe."],
+  ["Arderea resturilor de pe câmp primăvara e sigură dacă nu bate vântul.", 0, "E una dintre cauzele cele mai dese de incendii în România. O rafală de vânt poate apărea oricând."],
+  ["După un incendiu, cenușa poate polua râurile.", 1, "Ploaia spală cenușa și pământul ars în râuri, iar peștii au de suferit."],
+  ["Cu cât descoperim focul mai devreme, cu atât salvăm mai multă pădure.", 1, "De aceea vrem o dronă care patrulează. Focul mic se stinge ușor; focul mare, foarte greu."]
+];
+let qi = 0, turn = 0, answered = false;
+const scores = [0, 0];
+function qRender() {
+  $("#qnum").textContent = `Întrebarea ${qi + 1} din ${Q.length} · răspunde ${$("#tn" + turn).value}`;
+  $("#qtext").textContent = Q[qi][0];
+  $("#verdict").textContent = ""; $("#qnext").hidden = true; answered = false;
+  [0, 1].forEach(t => $("#team" + t).classList.toggle("turn", t === turn));
+  document.querySelectorAll(".qans .btn").forEach(b => b.disabled = false);
+}
+document.querySelectorAll(".qans .btn").forEach(b => b.onclick = () => {
+  if (answered) return; answered = true;
+  const ok = +b.dataset.a === Q[qi][1];
+  if (ok) { scores[turn]++; $("#ts" + turn).textContent = scores[turn]; }
+  $("#verdict").innerHTML = `<b class="${ok ? "ok" : "no"}">${ok ? "Corect!" : "Nu chiar."}</b> ${Q[qi][2]}`;
+  document.querySelectorAll(".qans .btn").forEach(x => x.disabled = true);
+  if (qi < Q.length - 1) $("#qnext").hidden = false;
+  else $("#verdict").innerHTML += `<br><b class="ok">Gata! ${scores[0] === scores[1] ? "Egalitate." : "Câștigă " + $("#tn" + (scores[0] > scores[1] ? 0 : 1)).value + "."}</b>`;
+});
+$("#qnext").onclick = () => { qi++; turn = 1 - turn; qRender(); };
+$("#qreset").onclick = () => { qi = 0; turn = 0; scores[0] = scores[1] = 0; $("#ts0").textContent = $("#ts1").textContent = "0"; qRender(); };
+qRender();
+
+/* ---------- ideas board ---------- */
+const cols = [
+  ["prevenire", "Prevenire", "să nu pornească"],
+  ["detectare", "Detectare", "să-l vedem primii"],
+  ["stingere", "Stingere", "să-l oprim repede"],
+  ["refacere", "Refacere", "după incendiu"]
+];
+let ideas = store.get("crocorobo-ideas", null) || {
+  prevenire: [{ t: "Dronă care vorbește prin difuzor cu oamenii care fac focul în pădure", v: 0, ex: 1 }],
+  detectare: [{ t: "Dronă cu cameră termică ce patrulează noaptea", v: 0, ex: 1 }],
+  stingere: [], refacere: [{ t: "Dronă care împrăștie semințe pe zona arsă", v: 0, ex: 1 }]
+};
+function renderIdeas() {
+  $("#ideas").innerHTML = cols.map(([k, n, s]) => `
+    <div class="col" data-k="${k}">
+      <h3>${n} <small>${s}</small></h3>
+      <div class="notes">${ideas[k].map((o, i) => `
+        <div class="note">${o.t.replace(/</g, "&lt;")}${o.ex ? '<span class="ex">exemplu</span>' : ""}
+          <div class="acts"><button data-act="vote" data-i="${i}">+1</button><button data-act="del" data-i="${i}" aria-label="Șterge">✕</button><span class="dots">${"●".repeat(o.v)}</span></div>
+        </div>`).join("")}</div>
+      <form class="add"><input id="in-${k}" placeholder="Ideea voastră…" autocomplete="off"><button class="btn primary" aria-label="Adaugă">+</button></form>
+    </div>`).join("");
+}
+$("#ideas").addEventListener("submit", e => {
+  e.preventDefault();
+  const k = e.target.closest(".col").dataset.k, inp = e.target.querySelector("input"), t = inp.value.trim();
+  if (!t) return;
+  ideas[k].push({ t, v: 0 }); store.set("crocorobo-ideas", ideas); renderIdeas();
+  $("#in-" + k).focus();
+});
+$("#ideas").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const k = b.closest(".col").dataset.k, i = +b.dataset.i;
+  if (b.dataset.act === "vote") ideas[k][i].v++; else ideas[k].splice(i, 1);
+  store.set("crocorobo-ideas", ideas); renderIdeas();
+});
+renderIdeas();
+
+/* ---------- timer ---------- */
+let tEnd = 0, tInt = null, audio = null;
+function beep() {
+  try {
+    audio = audio || new AudioContext();
+    [0, .35, .7].forEach(d => { const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 880; o.connect(g); g.connect(audio.destination); g.gain.setValueAtTime(.25, audio.currentTime + d); g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + d + .3); o.start(audio.currentTime + d); o.stop(audio.currentTime + d + .3); });
+  } catch {}
+}
+function tick() {
+  const left = Math.max(0, Math.round((tEnd - Date.now()) / 1000));
+  $("#clock").textContent = String(Math.floor(left / 60)).padStart(2, "0") + ":" + String(left % 60).padStart(2, "0");
+  if (left === 0) { clearInterval(tInt); tInt = null; $("#timer").classList.add("ring"); beep(); }
+}
+document.querySelectorAll("#timer [data-m]").forEach(b => b.onclick = () => {
+  try { audio = audio || new AudioContext(); audio.resume(); } catch {}
+  $("#timer").classList.remove("ring"); tEnd = Date.now() + b.dataset.m * 60000; clearInterval(tInt); tInt = setInterval(tick, 250); tick();
+});
+$("#tStop").onclick = () => { clearInterval(tInt); tInt = null; $("#timer").classList.remove("ring"); $("#clock").textContent = "00:00"; };
+
+show(location.hash.slice(1));
+</script>
+</html>
